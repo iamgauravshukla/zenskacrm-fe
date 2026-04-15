@@ -8,12 +8,14 @@ export default function ForgotPasswordPage() {
   const [email, setEmail]     = useState('');
   const [sent, setSent]       = useState(false);
   const [loading, setLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/auth/forgot-password', { email });
+      const response = await api.post('/auth/forgot-password', { email });
+      setPreviewUrl(response.data?.devResetUrl || '');
       setSent(true);
     } catch (err: any) {
       // Show the actual message from the backend (e.g. SMTP not configured)
@@ -52,6 +54,22 @@ export default function ForgotPasswordPage() {
               <p className="text-slate-500 text-xs mb-6">
                 Don't see it? Check your <strong className="text-slate-400">Spam / Junk</strong> folder.
               </p>
+              {previewUrl ? (
+                <div className="mb-6 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-left">
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-300 mb-1">
+                    Local development
+                  </p>
+                  <p className="text-xs text-emerald-100 mb-3">
+                    Email can be delayed or filtered in local testing. Use this reset link directly.
+                  </p>
+                  <a
+                    href={previewUrl}
+                    className="inline-flex items-center rounded-lg bg-emerald-400 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-300"
+                  >
+                    Open Reset Link
+                  </a>
+                </div>
+              ) : null}
               <Link href="/login" className="text-primary-400 hover:text-primary-300 text-sm font-medium">
                 ← Back to Login
               </Link>
