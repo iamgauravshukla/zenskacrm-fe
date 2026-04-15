@@ -51,7 +51,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, loading, pathname, router]);
 
-  if (loading || !user) return <div className="p-10 text-center">Loading...</div>;
+  // Don't block when we have a cached user — verify token silently in background.
+  // If token is invalid, the 401 interceptor will redirect to /login automatically.
+  if (!user) return <div className="p-10 text-center">Loading...</div>;
 
   return (
     <div className="flex h-screen">

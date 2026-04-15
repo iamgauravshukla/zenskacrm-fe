@@ -84,7 +84,7 @@ export default function MeetingsPage() {
     setSaving(true);
     try {
       await api.post('/meetings', form);
-      toast.success(form.type==='video'?'Meeting scheduled — Calendly link generated!':'Meeting scheduled');
+      toast.success('Meeting scheduled');
       setShowModal(false);
       setForm({leadId:'',scheduledAt:'',type:'call',notes:'',agenda:'',assignedTo:'',meetLink:'',address:''});
       setLeadSearch(''); setSelectedLead(null); setLeadOptions([]);
@@ -136,7 +136,7 @@ export default function MeetingsPage() {
         <div className="overflow-x-auto scrollbar-none">
           <table className="w-full">
             <thead className="bg-surface-subtle border-b border-surface-border">
-              <tr>{['Lead','Type','Scheduled','Status','Calendly Link','Assigned','Actions'].map(h=><th key={h} className="table-header">{h}</th>)}</tr>
+              <tr>{['Lead','Type','Scheduled','Status','Details','Assigned','Actions'].map(h=><th key={h} className="table-header">{h}</th>)}</tr>
             </thead>
             <tbody>
               {loading ? (
@@ -249,7 +249,7 @@ export default function MeetingsPage() {
                   <label className="label">Type *</label>
                   <select required className="input" value={form.type} onChange={setF('type')}>
                     <option value="call">📞 Call</option>
-                    <option value="video">🎥 Video (Calendly)</option>
+                    <option value="video">🎥 Video</option>
                     <option value="in-person">🤝 In-Person</option>
                   </select>
                 </div>
