@@ -10,7 +10,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, AreaCh
 const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const STAGE_BAR_COLORS: Record<string,string> = {
   'New Lead':'#3b82f6','In Process':'#f59e0b','Meeting Scheduled':'#8b5cf6',
-  'Meeting Completed':'#6366f1','Onboarding Started':'#f97316',
+  'Meeting Completed':'#6366f1','Potential OB Later':'#14b8a6',
+  'Onboarding Started':'#f97316',
   'Onboarding Completed':'#22c55e','Offer Sent / Closed':'#64748b',
 };
 const BAR_PALETTE = ['#6366f1','#8b5cf6','#a78bfa','#c4b5fd','#818cf8','#6366f1','#8b5cf6'];

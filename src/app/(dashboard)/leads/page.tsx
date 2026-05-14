@@ -14,6 +14,9 @@ const SOURCE_STYLE: Record<string,string> = {
   'Google Sheets': 'bg-green-50 text-green-700 border-green-100',
 };
 
+// Columns that can never be hidden
+const ALWAYS_VISIBLE = new Set(['Lead', 'Actions']);
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -26,7 +29,8 @@ export default function LeadsPage() {
   const [importing, setImporting] = useState(false);
   const [duplicates, setDuplicates] = useState<{name:string;phone:string;existingId:string}[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [filters, setFilters] = useState({ search:'', stage:'', assignedTo:'', source:'', startDate:'', endDate:'' });
+  const [filters, setFilters] = useState({ search:'', stage:'', assignedTo:'', source:'', startDate:'', endDate:'', authorizedBrand:'' });
+  const [exporting, setExporting] = useState(false);
   // Separate debounced search so typing doesn't fire an API call on every keystroke
   const [searchInput, setSearchInput] = useState('');
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,6 +44,24 @@ export default function LeadsPage() {
   }, []);
   const [customFields, setCustomFields] = useState<string[]>([]);
   const [assigningId, setAssigningId] = useState<string|null>(null);
+
+  // Column visibility — keys are column labels; hidden cols are in the set
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColMenu, setShowColMenu] = useState(false);
+  const colMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) setShowColMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  const colVisible = (name: string) => ALWAYS_VISIBLE.has(name) || !hiddenCols.has(name);
+  const toggleCol = (name: string) => setHiddenCols(prev => {
+    const next = new Set(prev);
+    next.has(name) ? next.delete(name) : next.add(name);
+    return next;
+  });
 
   const handleAssign = async (leadId: string, userId: string) => {
     if (assigningId) return; // prevent duplicate rapid updates
@@ -114,7 +136,29 @@ export default function LeadsPage() {
     catch { toast.error('Failed'); }
   };
 
-  const clearFilters = () => setFilters({ search:'', stage:'', assignedTo:'', source:'', startDate:'', endDate:'' });
+  const clearFilters = () => { setSearchInput(''); setFilters({ search:'', stage:'', assignedTo:'', source:'', startDate:'', endDate:'', authorizedBrand:'' }); };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params: any = {};
+      Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+      const qs = new URLSearchParams(params).toString();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/leads/export/csv${qs ? '?' + qs : ''}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leads-export-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error('Export failed'); }
+    finally { setExporting(false); }
+  };
   const setF = (k:string) => (e:React.ChangeEvent<any>) => { setPage(1); setFilters(p=>({...p,[k]:e.target.value})); };
   const hasFilters = Object.values(filters).some(Boolean);
   const PAGES = Math.ceil(total/20);
@@ -124,11 +168,40 @@ export default function LeadsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div><h1 className="text-xl sm:text-2xl font-bold text-ink">Leads</h1><p className="text-ink-muted text-sm mt-0.5">{total.toLocaleString()} total</p></div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleImport}/>
           <button onClick={()=>fileRef.current?.click()} disabled={importing} className="btn-secondary text-xs sm:text-sm">
             {importing?<><span className="w-3.5 h-3.5 border-2 border-ink-muted border-t-transparent rounded-full animate-spin"/>Importing…</>:<><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Import CSV</>}
           </button>
+          <button onClick={handleExport} disabled={exporting} className="btn-secondary text-xs sm:text-sm">
+            {exporting?<><span className="w-3.5 h-3.5 border-2 border-ink-muted border-t-transparent rounded-full animate-spin"/>Exporting…</>:<><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Export CSV</>}
+          </button>
+          {/* Columns visibility toggle */}
+          <div className="relative" ref={colMenuRef}>
+            <button onClick={()=>setShowColMenu(v=>!v)}
+              className={`btn-secondary text-xs sm:text-sm ${hiddenCols.size>0?'ring-2 ring-primary-400':''}`}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+              Columns{hiddenCols.size>0?` (${hiddenCols.size} hidden)`:''}
+            </button>
+            {showColMenu && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-surface-border rounded-2xl shadow-xl p-3 min-w-[180px]">
+                <p className="text-[10px] font-bold text-ink-muted uppercase tracking-wide mb-2 px-1">Toggle Columns</p>
+                {(['Date Added','Phone','WhatsApp',...customFields.filter(f=>f!=='Lead'),'Assigned'] as string[]).map(col=>(
+                  <label key={col} className="flex items-center gap-2.5 px-1 py-1.5 rounded-lg hover:bg-surface-subtle cursor-pointer">
+                    <input type="checkbox" checked={colVisible(col)} onChange={()=>toggleCol(col)}
+                      className="w-3.5 h-3.5 rounded accent-primary-500"/>
+                    <span className="text-xs text-ink-secondary font-medium">{col}</span>
+                  </label>
+                ))}
+                {hiddenCols.size>0 && (
+                  <button onClick={()=>setHiddenCols(new Set())}
+                    className="mt-2 w-full text-[11px] text-primary-500 hover:underline text-left px-1">
+                    Show all columns
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <button onClick={()=>setShowAdd(true)} className="btn-primary text-xs sm:text-sm">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>Add Lead
           </button>
@@ -163,6 +236,25 @@ export default function LeadsPage() {
             <select className="input min-w-[130px]" value={filters.assignedTo} onChange={setF('assignedTo')}>
               <option value="">All</option>{team.map(m=><option key={m._id} value={m._id}>{m.name}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="label">Authorized Brand</label>
+            <select className="input min-w-[150px]" value={filters.authorizedBrand} onChange={setF('authorizedBrand')}>
+              <option value="">All Leads</option>
+              <option value="true">Has Authorized Brand</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Added By</label>
+            <button
+              onClick={()=>{ setPage(1); setFilters(f=>({...f, source: f.source==='Manual'?'':'Manual'})); }}
+              className={`input min-w-[110px] text-left text-xs font-medium transition-all ${
+                filters.source==='Manual'
+                  ? 'bg-primary-50 border-primary-400 text-primary-700 ring-1 ring-primary-300'
+                  : 'text-ink-secondary'
+              }`}>
+              {filters.source==='Manual' ? '✓ Manual Only' : 'Manual Only'}
+            </button>
           </div>
           <div>
             <label className="label">From</label>
@@ -209,34 +301,40 @@ export default function LeadsPage() {
               <tr>
                 {['Date Added','Lead','Phone','WhatsApp',
                   ...customFields.filter(f => f !== 'Lead'),
-                  'Assigned','Actions'].map((h, i)=>(
+                  'Assigned','Actions']
+                  .filter(h => colVisible(h))
+                  .map((h, i)=>(
                   <th key={`col-${i}`} className="table-header">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                [...Array(5)].map((_,i)=>(
+              {(() => {
+                const visibleColCount = ['Date Added','Lead','Phone','WhatsApp',
+                  ...customFields.filter(f=>f!=='Lead'),'Assigned','Actions']
+                  .filter(c => colVisible(c)).length;
+                if (loading) return [...Array(5)].map((_,i)=>(
                   <tr key={i} className="border-b border-surface-border/60">
-                    {[...Array(6 + customFields.filter(f => f !== 'Lead').length)].map((_,j)=><td key={j} className="table-cell"><div className="h-4 skeleton rounded-lg"/></td>)}
+                    {[...Array(visibleColCount)].map((_,j)=><td key={j} className="table-cell"><div className="h-4 skeleton rounded-lg"/></td>)}
                   </tr>
-                ))
-              ) : leads.length === 0 ? (
-                <tr><td colSpan={6 + customFields.filter(f => f !== 'Lead').length} className="py-20 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-14 h-14 bg-surface-muted rounded-2xl flex items-center justify-center text-3xl">🔍</div>
+                ));
+                if (leads.length === 0) return (
+                  <tr><td colSpan={visibleColCount} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-14 h-14 bg-surface-muted rounded-2xl flex items-center justify-center text-3xl">🔍</div>
                     <p className="text-ink-secondary font-semibold">No leads found</p>
                     <p className="text-xs text-ink-muted">{hasFilters?'Try adjusting your filters':'Add your first lead to get started'}</p>
                   </div>
                 </td></tr>
-              ) : leads.map(lead => (
+                );
+                return leads.map(lead => (
                 <tr key={lead._id} className="table-row group">
                   {/* Date Added */}
-                  <td className="table-cell whitespace-nowrap">
+                  {colVisible('Date Added') && <td className="table-cell whitespace-nowrap">
                     <p className="text-xs font-semibold text-ink-secondary">{formatDate(lead.createdAt)}</p>
                     <p className="text-[10px] text-ink-muted">{formatRelativeTime(lead.createdAt)}</p>
-                  </td>
-                  {/* Lead (always shown after Date Added) */}
+                  </td>}
+                  {/* Lead — always visible */}
                   <td className="table-cell">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm"
@@ -248,21 +346,21 @@ export default function LeadsPage() {
                     </div>
                   </td>
                   {/* Phone */}
-                  <td className="table-cell">
+                  {colVisible('Phone') && <td className="table-cell">
                     <button onClick={()=>setRevealed(p=>{const n=new Set(p);n.has(lead._id)?n.delete(lead._id):n.add(lead._id);return n;})}
                       className="font-mono text-xs text-ink-secondary hover:text-primary-500 transition-colors">
                       {revealed.has(lead._id)?lead.phone:maskPhone(lead.phone)}
                     </button>
-                  </td>
+                  </td>}
                   {/* WhatsApp */}
-                  <td className="table-cell">
+                  {colVisible('WhatsApp') && <td className="table-cell">
                     <a href={`https://wa.me/${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
                       className="w-8 h-8 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center transition-colors" title="Open WhatsApp">
                       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                     </a>
-                  </td>
-                  {/* Dynamic custom fields from CSV (excluding Lead which is already shown) */}
-                  {customFields.filter(cf => cf !== 'Lead').map(cf => {
+                  </td>}
+                  {/* Dynamic custom fields — each toggled individually */}
+                  {customFields.filter(cf => cf !== 'Lead' && colVisible(cf)).map(cf => {
                     const val = lead.customFields instanceof Map
                       ? lead.customFields.get(cf)
                       : (lead.customFields && typeof lead.customFields === 'object' ? lead.customFields[cf] : undefined);
@@ -274,7 +372,7 @@ export default function LeadsPage() {
                   })}
 
                   {/* Assigned */}
-                  <td className="table-cell">
+                  {colVisible('Assigned') && <td className="table-cell">
                     <div className="relative flex items-center gap-1.5">
                       {lead.assignedTo && (
                         <div className="w-6 h-6 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600 text-[10px] font-bold flex-shrink-0">
@@ -297,9 +395,9 @@ export default function LeadsPage() {
                         <span className="w-3.5 h-3.5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                       )}
                     </div>
-                  </td>
+                  </td>}
 
-                  {/* Actions */}
+                  {/* Actions — always visible */}
                   <td className="table-cell">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Link href={`/leads/${lead._id}`} className="btn-ghost btn-icon btn-sm text-primary-500">
@@ -311,7 +409,8 @@ export default function LeadsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ));
+              })()}
             </tbody>
           </table>
         </div>

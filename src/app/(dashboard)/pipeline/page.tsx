@@ -13,10 +13,11 @@ const COLS = [
   {key:'New Lead',            label:'New Lead',    accent:'bg-sky-400',    bg:'bg-sky-50',    border:'border-sky-200',    head:'text-sky-700'},
   {key:'In Process',          label:'In Process',  accent:'bg-amber-400',  bg:'bg-amber-50',  border:'border-amber-200',  head:'text-amber-700'},
   {key:'Meeting Scheduled',   label:'Meeting 📅',  accent:'bg-violet-400', bg:'bg-violet-50', border:'border-violet-200', head:'text-violet-700'},
-  {key:'Meeting Completed',   label:'Met ✓',       accent:'bg-indigo-400', bg:'bg-indigo-50', border:'border-indigo-200', head:'text-indigo-700'},
-  {key:'Onboarding Started',  label:'Onboarding',  accent:'bg-orange-400', bg:'bg-orange-50', border:'border-orange-200', head:'text-orange-700'},
+  {key:'Meeting Completed',   label:'Met ✓',         accent:'bg-indigo-400', bg:'bg-indigo-50', border:'border-indigo-200', head:'text-indigo-700'},
+  {key:'Potential OB Later',  label:'OB Later',       accent:'bg-teal-400',   bg:'bg-teal-50',   border:'border-teal-200',   head:'text-teal-700'},
+  {key:'Onboarding Started',  label:'Onboarding',    accent:'bg-orange-400', bg:'bg-orange-50', border:'border-orange-200', head:'text-orange-700'},
   {key:'Onboarding Completed',label:'OB Done ✅',  accent:'bg-emerald-500',bg:'bg-emerald-50',border:'border-emerald-200',head:'text-emerald-700'},
-  {key:'Offer Sent / Closed', label:'Closed 🎉',   accent:'bg-slate-400',  bg:'bg-slate-50',  border:'border-slate-200',  head:'text-slate-600'},
+  {key:'Offer Sent / Closed', label:'Non-Qualified', accent:'bg-slate-400',  bg:'bg-slate-50',  border:'border-slate-200',  head:'text-slate-600'},
 ];
 
 const getStageDate = (lead:any, stage:string) => {
