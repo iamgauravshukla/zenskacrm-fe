@@ -5,6 +5,13 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { STAGES, STAGE_COLORS, TAG_COLORS, formatDate, formatRelativeTime } from '@/lib/constants';
 
+const STAGE_LABELS: Record<string, string> = {
+  'Potential OB Later': 'OB Later',
+  'Offer Sent / Closed': 'Non-Qualified',
+};
+
+const stageLabel = (stage: string) => STAGE_LABELS[stage] || stage;
+
 // ─── @mention input hook ──────────────────────────────────────────────────────
 function useMentionInput(teamMembers: any[]) {
   const [value, setValue] = useState('');
@@ -249,7 +256,7 @@ export default function LeadDetailPage() {
           <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 flex-shrink-0">←</button>
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: lead.tagColor }} />
           <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{lead.name}</h1>
-          <span className={`badge flex-shrink-0 ${STAGE_COLORS[lead.stage] || 'bg-gray-100'}`}>{lead.stage}</span>
+          <span className={`badge flex-shrink-0 ${STAGE_COLORS[lead.stage] || 'bg-gray-100'}`}>{stageLabel(lead.stage)}</span>
         </div>
         <div className="flex gap-2">
           {editing ? (
@@ -396,7 +403,7 @@ export default function LeadDetailPage() {
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border disabled:opacity-50 disabled:cursor-wait ${
                     lead.stage === s ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}>
-                  {stageSaving && lead.stage === s ? '…' : s}
+                  {stageSaving && lead.stage === s ? '…' : stageLabel(s)}
                 </button>
               ))}
             </div>

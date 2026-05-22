@@ -92,7 +92,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!(user as any)?.workspaceId) { setLoading(false); return; }
-    api.get('/dashboard/summary')
+    api.get(`/dashboard/summary?_t=${Date.now()}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Failed to load dashboard'))
       .finally(() => setLoading(false));
@@ -187,9 +187,39 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* 📊 Daily Report strip */}
+      {data.dailyReport && (
+        <div className="card overflow-hidden">
+          <div className="px-4 sm:px-5 pt-4 pb-2 flex items-center gap-2 border-b border-surface-border">
+            <span className="text-base">📊</span>
+            <h2 className="text-sm font-bold text-ink">Today's Report</h2>
+            <span className="ml-auto text-[11px] text-ink-muted font-medium">
+              {new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-surface-border">
+            {[
+              { label:'Bookings Today',    value: data.dailyReport.todayBookings,    icon:'📅', sub:'meetings on calendar', color:'violet' },
+              { label:'Leads Added',       value: data.dailyReport.todayLeads,       icon:'👤', sub:'new leads today',      color:'blue'   },
+              { label:'Onboardings',       value: data.dailyReport.todayOnboardings, icon:'🔄', sub:'started today',        color:'emerald'},
+            ].map(({ label, value, icon, sub, color }) => (
+              <div key={label} className="p-4 sm:p-5 flex flex-col gap-1 hover:bg-surface-subtle transition-colors">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-base">{icon}</span>
+                  <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide">{label}</span>
+                </div>
+                <div className={`text-3xl font-black ${
+                  color === 'violet' ? 'text-violet-600' : color === 'blue' ? 'text-blue-600' : 'text-emerald-600'
+                }`}>{value ?? 0}</div>
+                <div className="text-[11px] text-ink-muted">{sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {KPI.map(({ key, label, sub, icon, color }) => {
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">        {KPI.map(({ key, label, sub, icon, color }) => {
           const c = colorMap[color];
           return (
             <div key={key} className={`card p-3 sm:p-5 hover:shadow-lg transition-all duration-200 border-l-4 ${c.border}`}>
